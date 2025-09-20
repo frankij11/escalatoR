@@ -33,3 +33,9 @@ docs/
 po/*~
 # RStudio Connect folder
 rsconnect/
+
+# Temporary test files
+test_structure.R
+
+# Development escalator-app (keep inst/escalator-app)
+/escalator-app/
