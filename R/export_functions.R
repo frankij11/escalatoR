@@ -9,7 +9,7 @@ export_to_csv <- function(data, metadata, filename) {
   export_data <- data %>%
     dplyr::mutate(
       export_date = Sys.Date(),
-      cape_version = "1.0",
+      escalator_version = "1.0",
       analyst = Sys.info()["user"]
     )
   for (name in names(metadata)) {
@@ -60,8 +60,8 @@ export_to_excel <- function(data, metadata, outlay_profile, filename) {
               metadata$fy_aggregation, metadata$escalation_method,
               metadata$base_year, metadata$outlay_profile)
   )
-  openxlsx::addWorksheet(wb, "CAPE_Compliance")
-  openxlsx::writeData(wb, "CAPE_Compliance", compliance)
+  openxlsx::addWorksheet(wb, "DoD_CAPE_Compliance")
+  openxlsx::writeData(wb, "DoD_CAPE_Compliance", compliance)
   openxlsx::saveWorkbook(wb, filename, overwrite = TRUE)
   message(sprintf("✓ Exported to Excel: %s", filename))
   return(invisible(TRUE))

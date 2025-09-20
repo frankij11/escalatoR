@@ -1,14 +1,49 @@
-Package: capeEscalation
+Package: escalatoR
 Type: Package
-Title: CAPE Escalation Analysis System
+Title: DoD Cost Escalation Analysis Following CAPE Methodology
 Version: 1.0.0
 Date: 2024-01-15
-Authors@R: person("Your", "Name", email = "your.email@example.com", role = c("aut", "cre"))
-Description: Comprehensive system for DoD cost escalation analysis following CAPE methodology.
-License: MIT
+Authors@R: c(
+    person("Kevin", "Joy", email = "kevin.joy@example.com", role = c("aut", "cre")),
+    person("Herren Associates", role = "cph"))
+Description: Comprehensive system for Department of Defense (DoD) cost escalation 
+    analysis following Cost Analysis and Program Evaluation (CAPE) methodology. 
+    Provides tools for retrieving Producer Price Index data from FRED, calculating 
+    escalation rates, generating forecasts, and creating weighted indices for 
+    complex acquisition portfolios. Includes an interactive Shiny application 
+    for guided analysis workflows.
+License: MIT + file LICENSE
+URL: https://github.com/frankij11/escalatoR
+BugReports: https://github.com/frankij11/escalatoR/issues
 Encoding: UTF-8
 LazyData: true
-Depends: R (>= 4.3.0)
-Imports: shiny, tidyverse, fredr, forecast, openxlsx
+Depends: 
+    R (>= 4.3.0)
+Imports: 
+    shiny (>= 1.7.0),
+    shinydashboard,
+    shinyWidgets,
+    tidyverse,
+    dplyr,
+    tidyr,
+    ggplot2,
+    lubridate,
+    zoo,
+    fredr,
+    httr,
+    jsonlite,
+    forecast,
+    tseries,
+    plotly,
+    DT,
+    openxlsx,
+    stats,
+    utils
+Suggests: 
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    covr
 RoxygenNote: 7.2.3
+VignetteBuilder: knitr
 

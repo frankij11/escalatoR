@@ -1,4 +1,7 @@
-#' CAPE Methodology Implementation Functions
+#' DoD CAPE Methodology Implementation Functions
+#' 
+#' Functions to validate and apply DoD Cost Analysis and Program Evaluation (CAPE)
+#' standards for escalation analysis
 
 #' Validate data according to CAPE standards
 #' @param data Data frame to validate

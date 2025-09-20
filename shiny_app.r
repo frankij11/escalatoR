@@ -1,6 +1,6 @@
 # ============================================================================
-# CAPE Escalation Analysis Shiny Application
-# User Interface for DoD Cost Estimation
+# escalatoR: DoD Cost Escalation Analysis Shiny Application
+# Interactive User Interface for Cost Estimation Following CAPE Methodology
 # ============================================================================
 
 # Load required libraries
@@ -12,7 +12,7 @@ library(plotly)
 library(tidyverse)
 library(fredr)
 
-# Source R package functions (in production, this would be library(capeEscalation))
+# Source R package functions (in production, this would be library(escalatoR))
 source("R/fred_api.R")
 source("R/data_processing.R")
 source("R/escalation_calc.R")
