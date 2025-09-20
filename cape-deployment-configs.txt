@@ -1,0 +1,514 @@
+# ============================================================================
+# Deployment Configuration Files for CAPE Escalation Analysis System
+# ============================================================================
+
+# File: deploy/shinyapps.io/rsconnect.yml
+# ============================================================================
+# Configuration for ShinyApps.io deployment
+
+name: cape-escalation
+title: CAPE Escalation Analysis System
+username: your-username
+account: your-account
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1234567
+bundleId: 7654321
+url: https://your-account.shinyapps.io/cape-escalation/
+when: 1704412800
+lastSyncTime: 1704412800
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: |
+  .Rhistory
+  .RData
+  .Rproj.user
+  README.md
+  docs/
+  tests/
+  deploy/
+
+# ============================================================================
+# File: deploy/docker/Dockerfile
+# ============================================================================
+FROM rocker/shiny:4.3.2
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libxml2-dev \
+    libfontconfig1-dev \
+    libharfbuzz-dev \
+    libfribidi-dev \
+    libfreetype6-dev \
+    libpng-dev \
+    libtiff5-dev \
+    libjpeg-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install R packages
+RUN R -e "install.packages(c( \
+    'shiny', \
+    'shinydashboard', \
+    'shinyWidgets', \
+    'tidyverse', \
+    'lubridate', \
+    'zoo', \
+    'fredr', \
+    'httr', \
+    'jsonlite', \
+    'forecast', \
+    'tseries', \
+    'randomForest', \
+    'xgboost', \
+    'plotly', \
+    'DT', \
+    'openxlsx', \
+    'corrplot' \
+    ), repos='https://cloud.r-project.org/')"
+
+# Create app directory
+RUN mkdir -p /srv/shiny-server/cape-escalation
+
+# Copy application files
+COPY R/ /srv/shiny-server/cape-escalation/R/
+COPY inst/shiny/ /srv/shiny-server/cape-escalation/
+COPY inst/outlay_profiles/ /srv/shiny-server/cape-escalation/outlay_profiles/
+COPY data/ /srv/shiny-server/cape-escalation/data/
+
+# Copy Shiny server configuration
+COPY deploy/docker/shiny-server.conf /etc/shiny-server/shiny-server.conf
+
+# Make the app available at port 3838
+EXPOSE 3838
+
+# Copy startup script
+COPY deploy/docker/startup.sh /usr/bin/startup.sh
+RUN chmod +x /usr/bin/startup.sh
+
+# Set environment variables
+ENV FRED_API_KEY=""
+
+# Run app
+CMD ["/usr/bin/startup.sh"]
+
+# ============================================================================
+# File: deploy/docker/docker-compose.yml
+# ============================================================================
+version: '3.8'
+
+services:
+  cape-escalation:
+    build: .
+    container_name: cape-escalation-app
+    ports:
+      - "3838:3838"
+    environment:
+      - FRED_API_KEY=${FRED_API_KEY}
+      - SHINY_LOG_LEVEL=INFO
+    volumes:
+      - ./data:/srv/shiny-server/cape-escalation/data
+      - ./logs:/var/log/shiny-server
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3838/cape-escalation/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: cape-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - cape-escalation
+    restart: unless-stopped
+
+# ============================================================================
+# File: deploy/docker/shiny-server.conf
+# ============================================================================
+# Shiny Server configuration for Docker
+
+run_as shiny;
+
+server {
+  listen 3838;
+
+  # Define the application
+  location /cape-escalation {
+    app_dir /srv/shiny-server/cape-escalation;
+    log_dir /var/log/shiny-server;
+    
+    # Timeout settings
+    app_init_timeout 300;
+    app_idle_timeout 600;
+    
+    # Resource limits
+    simple_scheduler 15;
+  }
+  
+  # Redirect root to app
+  location / {
+    redirect /cape-escalation/ 301 true;
+  }
+}
+
+# ============================================================================
+# File: deploy/docker/startup.sh
+# ============================================================================
+#!/bin/bash
+
+# Set up environment
+echo "Starting CAPE Escalation Analysis System..."
+
+# Check for FRED API key
+if [ -z "$FRED_API_KEY" ]; then
+    echo "Warning: FRED_API_KEY not set"
+fi
+
+# Ensure log directory exists
+mkdir -p /var/log/shiny-server
+chown shiny:shiny /var/log/shiny-server
+
+# Start Shiny Server
+exec shiny-server
+
+# ============================================================================
+# File: deploy/docker/nginx.conf
+# ============================================================================
+events {
+    worker_connections 1024;
+}
+
+http {
+    upstream shiny {
+        server cape-escalation:3838;
+    }
+
+    server {
+        listen 80;
+        server_name cape-escalation.your-domain.mil;
+
+        # Security headers
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+
+        # Proxy to Shiny
+        location / {
+            proxy_pass http://shiny;
+            proxy_redirect / $scheme://$http_host/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 20d;
+            proxy_buffering off;
+        }
+    }
+
+    # HTTPS configuration (optional)
+    server {
+        listen 443 ssl;
+        server_name cape-escalation.your-domain.mil;
+
+        ssl_certificate /etc/nginx/ssl/cert.pem;
+        ssl_certificate_key /etc/nginx/ssl/key.pem;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5;
+
+        location / {
+            proxy_pass http://shiny;
+            # Same proxy settings as above
+        }
+    }
+}
+
+# ============================================================================
+# File: deploy/huggingface/app.py
+# ============================================================================
+"""
+Hugging Face Spaces deployment wrapper for R Shiny app
+"""
+
+import subprocess
+import os
+import sys
+import time
+from pathlib import Path
+
+def setup_r_environment():
+    """Install R and required packages"""
+    print("Setting up R environment...")
+    
+    # Install R if not present
+    if not Path("/usr/bin/R").exists():
+        subprocess.run([
+            "apt-get", "update", "-y"
+        ], check=True)
+        subprocess.run([
+            "apt-get", "install", "-y", "r-base", "r-base-dev"
+        ], check=True)
+    
+    # Install R packages
+    r_script = """
+    install.packages(c('shiny', 'tidyverse', 'fredr'), 
+                     repos='https://cloud.r-project.org/')
+    """
+    subprocess.run(["R", "-e", r_script], check=True)
+    
+    print("R environment ready!")
+
+def launch_shiny_app():
+    """Launch the Shiny application"""
+    print("Launching CAPE Escalation Analysis System...")
+    
+    # Set environment variables
+    os.environ["FRED_API_KEY"] = os.getenv("FRED_API_KEY", "")
+    
+    # Run Shiny app
+    subprocess.run([
+        "R", "-e",
+        "shiny::runApp('inst/shiny/app.R', host='0.0.0.0', port=7860)"
+    ])
+
+if __name__ == "__main__":
+    setup_r_environment()
+    launch_shiny_app()
+
+# ============================================================================
+# File: deploy/huggingface/requirements.txt
+# ============================================================================
+# Python requirements for Hugging Face Spaces
+subprocess
+pathlib
+
+# ============================================================================
+# File: deploy/huggingface/README.md
+# ============================================================================
+---
+title: CAPE Escalation Analysis
+emoji: 📊
+colorFrom: blue
+colorTo: red
+sdk: gradio
+sdk_version: 4.0.0
+app_file: app.py
+pinned: false
+license: mit
+---
+
+# CAPE Escalation Analysis System
+
+DoD cost escalation analysis tool following CAPE methodology.
+
+## Features
+- PPI index retrieval from FRED
+- Fiscal year conversion
+- Escalation forecasting
+- Outlay profile weighting
+- CAPE compliance validation
+
+## Usage
+1. Enter FRED API key
+2. Search and select PPI index
+3. Process and forecast data
+4. Apply outlay profiles
+5. Export results
+
+# ============================================================================
+# File: deploy/kubernetes/deployment.yaml
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cape-escalation
+  labels:
+    app: cape-escalation
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: cape-escalation
+  template:
+    metadata:
+      labels:
+        app: cape-escalation
+    spec:
+      containers:
+      - name: cape-escalation
+        image: your-registry/cape-escalation:latest
+        ports:
+        - containerPort: 3838
+        env:
+        - name: FRED_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cape-secrets
+              key: fred-api-key
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3838
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3838
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cape-escalation-service
+spec:
+  selector:
+    app: cape-escalation
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3838
+  type: LoadBalancer
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cape-secrets
+type: Opaque
+data:
+  fred-api-key: <base64-encoded-api-key>
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cape-escalation-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: cape-escalation.your-domain.mil
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: cape-escalation-service
+            port:
+              number: 80
+
+# ============================================================================
+# File: .github/workflows/deploy.yml
+# ============================================================================
+name: Deploy CAPE Escalation System
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup R
+      uses: r-lib/actions/setup-r@v2
+      with:
+        r-version: '4.3.0'
+    
+    - name: Install dependencies
+      run: |
+        install.packages('remotes')
+        remotes::install_deps(dependencies = TRUE)
+      shell: Rscript {0}
+    
+    - name: Run tests
+      run: |
+        testthat::test_dir("tests/")
+      shell: Rscript {0}
+  
+  deploy-shinyapps:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup R
+      uses: r-lib/actions/setup-r@v2
+    
+    - name: Install rsconnect
+      run: |
+        install.packages('rsconnect')
+      shell: Rscript {0}
+    
+    - name: Deploy to shinyapps.io
+      env:
+        SHINYAPPS_ACCOUNT: ${{ secrets.SHINYAPPS_ACCOUNT }}
+        SHINYAPPS_TOKEN: ${{ secrets.SHINYAPPS_TOKEN }}
+        SHINYAPPS_SECRET: ${{ secrets.SHINYAPPS_SECRET }}
+      run: |
+        rsconnect::setAccountInfo(
+          name = Sys.getenv("SHINYAPPS_ACCOUNT"),
+          token = Sys.getenv("SHINYAPPS_TOKEN"),
+          secret = Sys.getenv("SHINYAPPS_SECRET")
+        )
+        rsconnect::deployApp(
+          appDir = "inst/shiny",
+          appName = "cape-escalation"
+        )
+      shell: Rscript {0}
+  
+  build-docker:
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Build and push
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ./deploy/docker/Dockerfile
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/cape-escalation:latest
+          ${{ secrets.DOCKER_USERNAME }}/cape-escalation:${{ github.sha }}

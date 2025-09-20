@@ -1,0 +1,9 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^README\.md$
+^\.github$
+^docs$
+^deploy$
+^examples$
+^\.Renviron$
+
