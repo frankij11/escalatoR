@@ -22,7 +22,16 @@ Depends:
 Imports: 
     shiny (>= 1.7.0),
     shinydashboard,
+    bs4Dash,
+    fresh,
     shinyWidgets,
+    waiter,
+    shinycssloaders,
+    reactable,
+    echarts4r,
+    shinyjs,
+    shinypop,
+    shinyFeedback,
     tidyverse,
     dplyr,
     tidyr,
@@ -38,7 +47,8 @@ Imports:
     DT,
     openxlsx,
     stats,
-    utils
+    utils,
+    purrr
 Suggests: 
     testthat (>= 3.0.0),
     knitr,
