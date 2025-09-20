@@ -30,13 +30,6 @@ install.packages("escalatoR")
 devtools::install_github("frankij11/escalatoR")
 ```
 
-#### Local Development
-```r
-# Clone repository and run setup
-source("setup.R")
-run_setup()
-```
-
 ### Setup
 
 #### FRED API Configuration
