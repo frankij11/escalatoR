@@ -34,6 +34,25 @@ source("setup.R")
 run_setup()
 ```
 
+### Setup
+
+#### FRED API Key (Required)
+To use escalatoR's data retrieval features, you need a free FRED API key:
+
+1. Get your free API key at: https://fred.stlouisfed.org/docs/api/api_key.html
+2. Copy `.Renviron.example` to `.Renviron`
+3. Add your API key to `.Renviron`:
+   ```
+   FRED_API_KEY=your_actual_api_key_here
+   ```
+4. Restart R for changes to take effect
+
+```r
+# Verify API key setup
+library(escalatoR)
+fredr::fredr_set_key(Sys.getenv("FRED_API_KEY"))
+```
+
 ### Basic Usage
 
 #### Programmatic Interface

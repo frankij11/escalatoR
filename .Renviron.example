@@ -1,0 +1,15 @@
+# escalatoR Environment Variables Template
+# Copy this file to .Renviron and add your actual values
+
+# FRED API Key (required for data retrieval)
+# Get your free API key from: https://fred.stlouisfed.org/docs/api/api_key.html
+FRED_API_KEY=your_fred_api_key_here
+
+# Shiny App Configuration (optional)
+# SHINY_HOST=127.0.0.1
+# SHINY_PORT=3838
+
+# Deployment Configuration (optional)
+# SHINYAPPS_ACCOUNT=your_account_name
+# SHINYAPPS_TOKEN=your_token
+# SHINYAPPS_SECRET=your_secret

@@ -1,0 +1,139 @@
+name: CRAN Preparation
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+      create_release:
+        description: 'Create GitHub release'
+        required: false
+        default: 'true'
+        type: boolean
+
+jobs:
+  cran-prep:
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+      
+      - name: Install dependencies
+        run: |
+          install.packages(c('devtools', 'roxygen2', 'testthat', 'rhub', 'pkgdown', 'covr'))
+          remotes::install_deps(dependencies = TRUE)
+        shell: Rscript {0}
+      
+      - name: Update version and date
+        run: |
+          desc <- readLines('DESCRIPTION')
+          desc[grep('^Version:', desc)] <- paste('Version:', '${{ github.event.inputs.version }}')
+          desc[grep('^Date:', desc)] <- paste('Date:', Sys.Date())
+          writeLines(desc, 'DESCRIPTION')
+          cat("✓ Updated DESCRIPTION with version ${{ github.event.inputs.version }}\n")
+        shell: Rscript {0}
+      
+      - name: Update documentation
+        run: |
+          devtools::document()
+          cat("✓ Documentation updated\n")
+        shell: Rscript {0}
+      
+      - name: Run tests
+        run: |
+          devtools::test()
+          cat("✓ Tests completed\n")
+        shell: Rscript {0}
+      
+      - name: Check test coverage
+        run: |
+          coverage <- covr::package_coverage()
+          coverage_pct <- covr::percent_coverage(coverage)
+          cat("Test coverage:", round(coverage_pct, 1), "%\n")
+          if (coverage_pct < 70) {
+            warning("Test coverage below 70%")
+          }
+        shell: Rscript {0}
+      
+      - name: Build package
+        run: |
+          devtools::build()
+          cat("✓ Package built\n")
+        shell: Rscript {0}
+      
+      - name: Final CRAN check
+        run: |
+          devtools::check(cran = TRUE)
+          cat("✓ CRAN check completed\n")
+        shell: Rscript {0}
+      
+      - name: Build website
+        run: |
+          pkgdown::build_site()
+          cat("✓ Package website built\n")
+        shell: Rscript {0}
+      
+      - name: Commit version update
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add DESCRIPTION man/ NAMESPACE
+          git commit -m "Release version ${{ github.event.inputs.version }}" || exit 0
+          git tag -a v${{ github.event.inputs.version }} -m "Release version ${{ github.event.inputs.version }}"
+          git push origin main
+          git push origin v${{ github.event.inputs.version }}
+      
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: cran-submission-${{ github.event.inputs.version }}
+          path: |
+            *.tar.gz
+            cran-comments.md
+            NEWS.md
+            check/
+      
+      - name: Create GitHub Release
+        if: ${{ github.event.inputs.create_release == 'true' }}
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          release_name: escalatoR v${{ github.event.inputs.version }}
+          body_path: NEWS.md
+          draft: false
+          prerelease: false
+      
+      - name: Upload release assets
+        if: ${{ github.event.inputs.create_release == 'true' }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./escalatoR_${{ github.event.inputs.version }}.tar.gz
+          asset_name: escalatoR_${{ github.event.inputs.version }}.tar.gz
+          asset_content_type: application/gzip
+      
+      - name: Deployment summary
+        run: |
+          echo "🎉 CRAN preparation complete!"
+          echo ""
+          echo "📦 Package: escalatoR_${{ github.event.inputs.version }}.tar.gz"
+          echo "🏷️  Git tag: v${{ github.event.inputs.version }}"
+          echo "📝 Release notes: See NEWS.md"
+          echo ""
+          echo "Next steps:"
+          echo "1. Download the .tar.gz file from the artifacts"
+          echo "2. Go to https://cran.r-project.org/submit.html"
+          echo "3. Upload the package and cran-comments.md"
+          echo "4. Monitor the submission process"

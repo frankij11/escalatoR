@@ -1,0 +1,83 @@
+name: Deploy Shiny App
+
+on:
+  push:
+    branches: [ main ]
+    paths: 
+      - 'shiny_app.r'
+      - 'R/**'
+      - 'inst/shiny/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev
+      
+      - name: Install R dependencies
+        run: |
+          install.packages(c('rsconnect', 'renv', 'remotes'))
+          remotes::install_deps(dependencies = TRUE)
+        shell: Rscript {0}
+      
+      - name: Prepare Shiny app for deployment
+        run: |
+          # Create deployment directory
+          mkdir -p shiny_deploy
+          
+          # Copy app file
+          cp shiny_app.r shiny_deploy/app.R
+          
+          # Copy R functions
+          cp -r R shiny_deploy/
+          
+          # Copy data if exists
+          if [ -d "data" ]; then
+            cp -r data shiny_deploy/
+          fi
+          
+          # Copy www assets if they exist
+          if [ -d "inst/shiny/www" ]; then
+            mkdir -p shiny_deploy/www
+            cp -r inst/shiny/www/* shiny_deploy/www/
+          fi
+        shell: bash
+      
+      - name: Authorize and deploy to shinyapps.io
+        env:
+          SHINYAPPS_ACCOUNT: ${{ secrets.SHINYAPPS_ACCOUNT }}
+          SHINYAPPS_TOKEN: ${{ secrets.SHINYAPPS_TOKEN }}
+          SHINYAPPS_SECRET: ${{ secrets.SHINYAPPS_SECRET }}
+        run: |
+          rsconnect::setAccountInfo(
+            name = Sys.getenv('SHINYAPPS_ACCOUNT'),
+            token = Sys.getenv('SHINYAPPS_TOKEN'),
+            secret = Sys.getenv('SHINYAPPS_SECRET')
+          )
+          
+          rsconnect::deployApp(
+            appDir = 'shiny_deploy',
+            appName = 'escalator-dod-cost-analysis',
+            appTitle = 'escalatoR: DoD Cost Escalation Analysis',
+            forceUpdate = TRUE,
+            launch.browser = FALSE
+          )
+          
+          cat("✓ Shiny app deployed successfully!\n")
+        shell: Rscript {0}
+      
+      - name: Report deployment status
+        run: |
+          echo "🚀 Shiny app deployed to: https://${{ secrets.SHINYAPPS_ACCOUNT }}.shinyapps.io/escalator-dod-cost-analysis/"
+          echo "📊 Monitor at: https://www.shinyapps.io/admin/"
