@@ -1,4 +1,7 @@
 # escalatoR: DoD Cost Escalation Analysis
+<div >
+  <img src="man/figures/logo.png" height="400" alt="escalatoR logo" />
+</div>
 
 [![R Version](https://img.shields.io/badge/R-%3E%3D%204.3.0-blue)](https://www.r-project.org/)
 [![Shiny](https://img.shields.io/badge/Shiny-1.7.0-green)](https://shiny.rstudio.com/)
@@ -7,10 +10,10 @@
 
 ## Overview
 
-<img src="man/figures/logo.png" align="left" />
-
 
 **escalatoR** provides DoD cost estimators with a comprehensive, CAPE-compliant tool for generating custom inflation indices. The package includes both programmatic functions and an interactive Shiny application for escalation analysis following official DoD Cost Analysis and Program Evaluation (CAPE) methodology.
+
+<div style="clear: both;"></div>
 
 ## Quick Start
 
@@ -36,22 +39,18 @@ run_setup()
 
 ### Setup
 
-#### FRED API Key (Required)
-To use escalatoR's data retrieval features, you need a free FRED API key:
+#### FRED API Configuration
+escalatoR integrates with the Federal Reserve Economic Data (FRED) API for real-time economic data:
 
-1. Get your free API key at: https://fred.stlouisfed.org/docs/api/api_key.html
-2. Copy `.Renviron.example` to `.Renviron`
-3. Add your API key to `.Renviron`:
+1. Register for a free API key at: https://fred.stlouisfed.org/docs/api/api_key.html
+2. Configure your environment:
+   ```r
+   # Option 1: Set in R session
+   fredr::fredr_set_key("your_api_key")
+   
+   # Option 2: Use .Renviron file (recommended)
+   # Copy .Renviron.example to .Renviron and add your key
    ```
-   FRED_API_KEY=your_actual_api_key_here
-   ```
-4. Restart R for changes to take effect
-
-```r
-# Verify API key setup
-library(escalatoR)
-fredr::fredr_set_key(Sys.getenv("FRED_API_KEY"))
-```
 
 ### Basic Usage
 
