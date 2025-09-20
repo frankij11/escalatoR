@@ -1,5 +1,4 @@
 # escalatoR: DoD Cost Escalation Analysis
-<img src="man/figures/logo.png" align="right" width="120" />
 
 [![R Version](https://img.shields.io/badge/R-%3E%3D%204.3.0-blue)](https://www.r-project.org/)
 [![Shiny](https://img.shields.io/badge/Shiny-1.7.0-green)](https://shiny.rstudio.com/)
@@ -8,6 +7,7 @@
 
 ## Overview
 
+<img src="man/figures/logo.png" align="left" />
 
 
 **escalatoR** provides DoD cost estimators with a comprehensive, CAPE-compliant tool for generating custom inflation indices. The package includes both programmatic functions and an interactive Shiny application for escalation analysis following official DoD Cost Analysis and Program Evaluation (CAPE) methodology.
