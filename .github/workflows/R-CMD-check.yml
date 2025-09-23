@@ -1,4 +1,4 @@
-name: R-CMD-check
+name: "R-CMD-check
 
 on:
   push:
@@ -72,3 +72,5 @@ jobs:
         with:
           name: ${{ runner.os }}-r${{ matrix.config.r }}-results
           path: check
+
+"
